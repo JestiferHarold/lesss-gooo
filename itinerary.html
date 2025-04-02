@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Itineraries - Lesss Gooo</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="dashboard.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        // Simple authentication check
+        function checkAuth() {
+            const isLoggedIn = localStorage.getItem('isLoggedIn');
+            if (!isLoggedIn) {
+                window.location.href = 'index.html#login';
+            }
+        }
+
+        // Run check when page loads
+        window.addEventListener('load', checkAuth);
+
+        // Handle logout
+        document.getElementById('logout-btn').addEventListener('click', function() {
+            localStorage.removeItem('isLoggedIn');
+            localStorage.removeItem('currentTrip');
+            window.location.href = 'index.html';
+        });
+
+        // Handle mobile logout
+        document.getElementById('mobile-logout-btn').addEventListener('click', function() {
+            localStorage.removeItem('isLoggedIn');
+            localStorage.removeItem('currentTrip');
+            window.location.href = 'index.html';
+        });
+
+        // Get trip data from dashboard
+        function getTripData() {
+            const tripData = JSON.parse(localStorage.getItem('currentTrip')) || {};
+            return tripData;
+        }
+
+        // Display trip data in itinerary format
+        function displayTripData() {
+            const tripData = getTripData();
+            if (!tripData.id) {
+                document.querySelector('.itinerary-list').innerHTML = `
+                    <div class="no-trip-message">
+                        <p>No trip selected. Please create a trip from the dashboard.</p>
+                        <a href="dashboard.html" class="btn btn-primary">Go to Dashboard</a>
+                    </div>
+                `;
+                return;
+            }
+
+            const itineraryList = document.querySelector('.itinerary-list');
+            itineraryList.innerHTML = `
+                <div class="itinerary-card">
+                    <div class="itinerary-header">
+                        <div class="itinerary-title">
+                            <h2>${tripData.destination || 'New Trip'}</h2>
+                            <span class="status ${tripData.status || 'planned'}">${tripData.status || 'Planned'}</span>
+                        </div>
+                        <div class="itinerary-actions">
+                            <button class="btn btn-sm btn-outline" onclick="viewItinerary('${tripData.id}')">
+                                <i class="fas fa-eye"></i> View
+                            </button>
+                            <button class="btn btn-sm btn-primary" onclick="editItinerary('${tripData.id}')">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteItinerary('${tripData.id}')">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="itinerary-details">
+                        <div class="detail-item">
+                            <i class="fas fa-calendar"></i>
+                            <span>${formatDate(tripData.startDate)} - ${formatDate(tripData.endDate)}</span>
+                        </div>
+                        <div class="detail-item">
+                            <i class="fas fa-users"></i>
+                            <span>${tripData.travelers || 1} Travelers</span>
+                        </div>
+                        <div class="detail-item">
+                            <i class="fas fa-wallet"></i>
+                            <span>$${tripData.budget || 0} Budget</span>
+                        </div>
+                        <div class="detail-item">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <span>${tripData.destination || 'Not specified'}</span>
+                        </div>
+                    </div>
+
+                    <div class="itinerary-tags">
+                        ${(tripData.interests || []).map(interest => `<span class="tag">${interest}</span>`).join('')}
+                    </div>
+
+                    <div class="itinerary-preferences">
+                        <h3>Trip Preferences</h3>
+                        <div class="preferences-grid">
+                            <div class="preference-item">
+                                <i class="fas fa-clock"></i>
+                                <span>Pace: ${tripData.pace || 'Not specified'}</span>
+                            </div>
+                            <div class="preference-item">
+                                <i class="fas fa-star"></i>
+                                <span>Style: ${tripData.style || 'Not specified'}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="itinerary-actions-bottom">
+                        <button class="btn btn-primary" onclick="generateItinerary('${tripData.id}')">
+                            <i class="fas fa-magic"></i> Generate Daily Itinerary
+                        </button>
+                        <button class="btn btn-outline" onclick="shareItinerary('${tripData.id}')">
+                            <i class="fas fa-share-alt"></i> Share
+                        </button>
+                        <button class="btn btn-outline" onclick="exportItinerary('${tripData.id}')">
+                            <i class="fas fa-download"></i> Export
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Helper function to format dates
+        function formatDate(dateString) {
+            if (!dateString) return 'Not specified';
+            const options = { month: 'short', day: 'numeric', year: 'numeric' };
+            return new Date(dateString).toLocaleDateString('en-US', options);
+        }
+
+        // View itinerary details
+        function viewItinerary(tripId) {
+            const tripData = getTripData();
+            if (tripData.id === tripId) {
+                // Show detailed view modal
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.innerHTML = `
+                    <div class="modal-content">
+                        <span class="close-modal">&times;</span>
+                        <h2>Trip Details</h2>
+                        <div class="trip-details-view">
+                            <div class="detail-group">
+                                <label>Destination</label>
+                                <p>${tripData.destination || 'Not specified'}</p>
+                            </div>
+                            <div class="detail-group">
+                                <label>Dates</label>
+                                <p>${formatDate(tripData.startDate)} - ${formatDate(tripData.endDate)}</p>
+                            </div>
+                            <div class="detail-group">
+                                <label>Travelers</label>
+                                <p>${tripData.travelers || 1}</p>
+                            </div>
+                            <div class="detail-group">
+                                <label>Budget</label>
+                                <p>$${tripData.budget || 0}</p>
+                            </div>
+                            <div class="detail-group">
+                                <label>Preferences</label>
+                                <p>${tripData.preferences || 'Not specified'}</p>
+                            </div>
+                            <div class="detail-group">
+                                <label>Interests</label>
+                                <div class="interests-tags">
+                                    ${(tripData.interests || []).map(interest => `
+                                        <span class="interest-tag">${interest}</span>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                document.body.appendChild(modal);
+                modal.style.display = 'flex';
+
+                // Close modal functionality
+                modal.querySelector('.close-modal').addEventListener('click', () => {
+                    modal.remove();
+                });
+
+                window.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        modal.remove();
+                    }
+                });
+            }
+        }
+
+        // Edit itinerary
+        function editItinerary(tripId) {
+            const tripData = getTripData();
+            if (tripData.id === tripId) {
+                // Redirect to dashboard with edit mode
+                localStorage.setItem('editMode', 'true');
+                window.location.href = 'dashboard.html';
+            }
+        }
+
+        // Delete itinerary
+        function deleteItinerary(tripId) {
+            const tripData = getTripData();
+            if (tripData.id === tripId) {
+                // Show confirmation modal
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.innerHTML = `
+                    <div class="modal-content">
+                        <span class="close-modal">&times;</span>
+                        <h2>Delete Itinerary</h2>
+                        <p>Are you sure you want to delete this itinerary? This action cannot be undone.</p>
+                        <div class="modal-actions">
+                            <button class="btn btn-danger" onclick="confirmDelete('${tripId}')">Delete</button>
+                            <button class="btn btn-outline" onclick="closeModal(this)">Cancel</button>
+                        </div>
+                    </div>
+                `;
+
+                document.body.appendChild(modal);
+                modal.style.display = 'flex';
+
+                // Close modal functionality
+                modal.querySelector('.close-modal').addEventListener('click', () => {
+                    modal.remove();
+                });
+
+                window.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        modal.remove();
+                    }
+                });
+            }
+        }
+
+        // Confirm delete
+        function confirmDelete(tripId) {
+            localStorage.removeItem('currentTrip');
+            showToast('Itinerary deleted successfully');
+            window.location.reload();
+        }
+
+        // Generate daily itinerary
+        function generateItinerary(tripId) {
+            const tripData = getTripData();
+            if (tripData.id === tripId) {
+                // Show loading state
+                showToast('Generating your daily itinerary...');
+                
+                // Simulate API call
+                setTimeout(() => {
+                    // Here you would typically make an API call to generate the itinerary
+                    showToast('Daily itinerary generated successfully!');
+                    // Redirect to detailed itinerary view
+                    window.location.href = `itinerary-detail.html?id=${tripId}`;
+                }, 2000);
+            }
+        }
+
+        // Share itinerary
+        function shareItinerary(tripId) {
+            const tripData = getTripData();
+            if (tripData.id === tripId) {
+                // Show share options modal
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.innerHTML = `
+                    <div class="modal-content">
+                        <span class="close-modal">&times;</span>
+                        <h2>Share Itinerary</h2>
+                        <div class="share-options">
+                            <button class="btn btn-outline" onclick="shareViaEmail('${tripId}')">
+                                <i class="fas fa-envelope"></i> Email
+                            </button>
+                            <button class="btn btn-outline" onclick="shareViaWhatsApp('${tripId}')">
+                                <i class="fab fa-whatsapp"></i> WhatsApp
+                            </button>
+                            <button class="btn btn-outline" onclick="copyLink('${tripId}')">
+                                <i class="fas fa-link"></i> Copy Link
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                document.body.appendChild(modal);
+                modal.style.display = 'flex';
+
+                // Close modal functionality
+                modal.querySelector('.close-modal').addEventListener('click', () => {
+                    modal.remove();
+                });
+
+                window.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        modal.remove();
+                    }
+                });
+            }
+        }
+
+        // Share via email
+        function shareViaEmail(tripId) {
+            const tripData = getTripData();
+            const subject = `My Trip to ${tripData.destination}`;
+            const body = `Check out my trip to ${tripData.destination}!`;
+            window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        }
+
+        // Share via WhatsApp
+        function shareViaWhatsApp(tripId) {
+            const tripData = getTripData();
+            const text = `Check out my trip to ${tripData.destination}!`;
+            window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+        }
+
+        // Copy link
+        function copyLink(tripId) {
+            const link = `${window.location.origin}/itinerary.html?id=${tripId}`;
+            navigator.clipboard.writeText(link).then(() => {
+                showToast('Link copied to clipboard!');
+            });
+        }
+
+        // Export itinerary
+        function exportItinerary(tripId) {
+            const tripData = getTripData();
+            if (tripData.id === tripId) {
+                // Create a formatted string of the itinerary
+                const itineraryText = `
+                    Trip to ${tripData.destination}
+                    Dates: ${formatDate(tripData.startDate)} - ${formatDate(tripData.endDate)}
+                    Travelers: ${tripData.travelers}
+                    Budget: $${tripData.budget}
+                    
+                    Interests:
+                    ${(tripData.interests || []).join(', ')}
+                    
+                    Preferences:
+                    ${tripData.preferences || 'Not specified'}
+                `;
+
+                // Create a blob and download
+                const blob = new Blob([itineraryText], { type: 'text/plain' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `itinerary-${tripData.destination.toLowerCase().replace(/\s+/g, '-')}.txt`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+
+                showToast('Itinerary exported successfully!');
+            }
+        }
+
+        // Show toast notification
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 100);
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    toast.remove();
+                }, 300);
+            }, 3000);
+        }
+
+        // Close modal
+        function closeModal(button) {
+            button.closest('.modal').remove();
+        }
+
+        // Handle new itinerary button
+        document.getElementById('new-itinerary-btn').addEventListener('click', function() {
+            localStorage.removeItem('currentTrip');
+            window.location.href = 'dashboard.html';
+        });
+
+        // Handle filter button
+        document.getElementById('filter-btn').addEventListener('click', function() {
+            // Show filter modal
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <span class="close-modal">&times;</span>
+                    <h2>Filter Itineraries</h2>
+                    <div class="filter-options">
+                        <div class="filter-group">
+                            <label>Status</label>
+                            <select id="status-filter">
+                                <option value="">All</option>
+                                <option value="planned">Planned</option>
+                                <option value="ongoing">Ongoing</option>
+                                <option value="completed">Completed</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Date Range</label>
+                            <input type="date" id="date-filter">
+                        </div>
+                        <div class="filter-group">
+                            <label>Budget Range</label>
+                            <input type="range" id="budget-filter" min="0" max="10000" step="100">
+                            <span id="budget-value">$5000</span>
+                        </div>
+                        <div class="filter-group">
+                            <label>Travelers</label>
+                            <input type="number" id="travelers-filter" min="1" max="10">
+                        </div>
+                    </div>
+                    <div class="modal-actions">
+                        <button class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
+                        <button class="btn btn-outline" onclick="closeModal(this)">Cancel</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+            modal.style.display = 'flex';
+
+            // Close modal functionality
+            modal.querySelector('.close-modal').addEventListener('click', () => {
+                modal.remove();
+            });
+
+            window.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.remove();
+                }
+            });
+
+            // Update budget value display
+            document.getElementById('budget-filter').addEventListener('input', function() {
+                document.getElementById('budget-value').textContent = `$${this.value}`;
+            });
+        });
+
+        // Apply filters
+        function applyFilters() {
+            const status = document.getElementById('status-filter').value;
+            const date = document.getElementById('date-filter').value;
+            const budget = document.getElementById('budget-filter').value;
+            const travelers = document.getElementById('travelers-filter').value;
+
+            // Here you would typically filter the itineraries based on these values
+            // For now, we'll just show a toast message
+            showToast('Filters applied successfully!');
+            closeModal(document.querySelector('.modal-actions button'));
+        }
+
+        // Load trip data when page loads
+        window.addEventListener('load', displayTripData);
+
+        // Mobile menu toggle
+        document.querySelector('.mobile-menu-btn').addEventListener('click', function() {
+            document.querySelector('.mobile-menu').classList.toggle('active');
+        });
+    </script>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <a href="index.html">Lesss Gooo</a>
+                </div>
+                
+                <nav class="main-nav">
+                    <ul>
+                        <li><a href="dashboard.html">Dashboard</a></li>
+                        <li><a href="itinerary.html" class="active">My Itineraries</a></li>
+                        <li><a href="bookings.html">My Bookings</a></li>
+                        <li><a href="profile.html">Profile</a></li>
+                    </ul>
+                </nav>
+                
+                <div class="header-actions">
+                    <div class="user-profile">
+                        <img src="https://via.placeholder.com/32" alt="User" class="avatar" id="user-avatar">
+                        <span class="user-name" id="user-name">User Name</span>
+                        <div class="dropdown">
+                            <ul>
+                                <li><a href="profile.html">My Account</a></li>
+                                <li><a href="settings.html">Settings</a></li>
+                                <li><a href="index.html" id="logout-btn">Logout</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <button class="mobile-menu-btn">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Mobile Menu -->
+    <div class="mobile-menu">
+        <ul>
+            <li><a href="dashboard.html">Dashboard</a></li>
+            <li><a href="itinerary.html" class="active">My Itineraries</a></li>
+            <li><a href="bookings.html">My Bookings</a></li>
+            <li><a href="profile.html">Profile</a></li>
+            <li><a href="index.html" id="mobile-logout-btn">Logout</a></li>
+        </ul>
+    </div>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="container">
+            <div class="dashboard-header">
+                <h1 class="page-title">My Itineraries</h1>
+                <div class="quick-actions">
+                    <button class="btn btn-outline" id="filter-btn">
+                        <i class="fas fa-filter"></i> Filter
+                    </button>
+                    <button class="btn btn-primary" id="new-itinerary-btn">
+                        <i class="fas fa-plus"></i> New Itinerary
+                    </button>
+                </div>
+            </div>
+
+            <!-- Itinerary List -->
+            <div class="itinerary-list">
+                <!-- Example of how an itinerary card should look -->
+                <div class="itinerary-card">
+                    <div class="itinerary-header">
+                        <div class="itinerary-title">
+                            <h2>Paris Adventure</h2>
+                            <span class="status planned">Planned</span>
+                        </div>
+                        <div class="itinerary-actions">
+                            <button class="btn btn-sm btn-outline" onclick="viewItinerary('trip-id')">
+                                <i class="fas fa-eye"></i> View
+                            </button>
+                            <button class="btn btn-sm btn-primary" onclick="editItinerary('trip-id')">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="itinerary-details">
+                        <div class="detail-item">
+                            <i class="fas fa-calendar"></i>
+                            <span>Dec 25 - Jan 5, 2024</span>
+                        </div>
+                        <div class="detail-item">
+                            <i class="fas fa-users"></i>
+                            <span>2 Travelers</span>
+                        </div>
+                        <div class="detail-item">
+                            <i class="fas fa-wallet"></i>
+                            <span>$3,000 Budget</span>
+                        </div>
+                        <div class="detail-item">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <span>Paris, France</span>
+                        </div>
+                    </div>
+
+                    <div class="itinerary-tags">
+                        <span class="tag">Luxury</span>
+                        <span class="tag">Culture</span>
+                        <span class="tag">Food</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-brand">
+                <a href="index.html" class="footer-logo">Lesss Gooo</a>
+                <p class="footer-tagline">Your AI Travel Companion</p>
+            </div>
+            <div class="footer-links">
+                <div class="footer-section">
+                    <h3>Quick Links</h3>
+                    <ul>
+                        <li><a href="dashboard.html">Dashboard</a></li>
+                        <li><a href="itinerary.html">My Itineraries</a></li>
+                        <li><a href="bookings.html">My Bookings</a></li>
+                        <li><a href="profile.html">Profile</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h3>Support</h3>
+                    <ul>
+                        <li><a href="#">Help Center</a></li>
+                        <li><a href="#">Contact Us</a></li>
+                        <li><a href="#">FAQ</a></li>
+                        <li><a href="#">Terms of Service</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h3>Connect With Us</h3>
+                    <div class="social-links">
+                        <a href="#"><i class="fab fa-facebook"></i></a>
+                        <a href="#"><i class="fab fa-twitter"></i></a>
+                        <a href="#"><i class="fab fa-instagram"></i></a>
+                        <a href="#"><i class="fab fa-linkedin"></i></a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2024 Lesss Gooo. All rights reserved.</p>
+        </div>
+    </footer>
+</body>
+</html>
